@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of vaibhavpandeyvpz/doctrine-datatables package.
+ * This file is part of omanshardt/doctrine-datatables package.
  *
  * (c) Vaibhav Pandey <contact@vaibhavpandey.com>
  *
