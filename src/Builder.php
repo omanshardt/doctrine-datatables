@@ -76,7 +76,7 @@ class Builder
         }
         // Fetch
         return $query instanceof ORMQueryBuilder ?
-            $query->getQuery()->getScalarResult() : $query->execute()->fetchAll();
+            $query->getQuery()->getResult() : $query->execute()->fetchAll();
     }
 
     /**
