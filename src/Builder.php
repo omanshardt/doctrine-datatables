@@ -115,7 +115,7 @@ class Builder
                     $column[$this->columnField] = $this->columnAliases[$column[$this->columnField]];
                 }
                 $operator = preg_match('~^\[(?<operator>[=!%<>]+)\].*$~', $value, $matches) ? $matches['operator'] : '=';
-                $value = preg_match('~^\[(?<operator>[=!%<>]+)\](?<term>.*)$~', $value, $matches) ? $matches['term'] : '=';
+                $value = preg_match('~^\[(?<operator>[=!%<>]+)\](?<term>.*)$~', $value, $matches) ? $matches['term'] : $value;
                 switch ($operator) {
                     case '!=': // Not equals; usage: [!=]search_term
                         $andX->add($query->expr()->neq($column[$this->columnField], ":filter_{$i}"));
