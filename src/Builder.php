@@ -48,7 +48,7 @@ class Builder
     /**
      * @return array
      */
-    public function getData()
+    public function getData($hydrator = null)
     {
         $query = $this->getFilteredQuery();
         $columns = &$this->requestParams['columns'];
@@ -76,7 +76,7 @@ class Builder
         }
         // Fetch
         return $query instanceof ORMQueryBuilder ?
-            $query->getQuery()->getResult() : $query->execute()->fetchAll();
+            $query->getQuery()->getResult($hydrator) : $query->execute()->fetchAll();
     }
 
     /**
@@ -114,28 +114,59 @@ class Builder
                 if (array_key_exists($column[$this->columnField], $this->columnAliases)) {
                     $column[$this->columnField] = $this->columnAliases[$column[$this->columnField]];
                 }
-                $operator = preg_match('~^\[(?<operator>[=!%<>]+)\].*$~', $value, $matches) ? $matches['operator'] : '=';
-                $value = preg_match('~^\[(?<operator>[=!%<>]+)\](?<term>.*)$~', $value, $matches) ? $matches['term'] : $value;
+                $operator = preg_match('~^\[(?<operator>[IN=!%<>•]+)\].*$~', $value, $matches) ? $matches['operator'] : '%•';
+                $value    = preg_match('~^\[(?<operator>[IN=!%<>•]+)\](?<term>.*)$~', $value, $matches) ? $matches['term'] : $value;
                 switch ($operator) {
                     case '!=': // Not equals; usage: [!=]search_term
                         $andX->add($query->expr()->neq($column[$this->columnField], ":filter_{$i}"));
+                        $query->setParameter("filter_{$i}", $value);
                         break;
-                    case '%': // Like; usage: [%]search_term
+                    case '%%': // Like; usage: [%]search_term
                         $andX->add($query->expr()->like($column[$this->columnField], ":filter_{$i}"));
                         $value = "%{$value}%";
+                        $query->setParameter("filter_{$i}", $value);
                         break;
                     case '<': // Less than; usage: [>]search_term
                         $andX->add($query->expr()->lt($column[$this->columnField], ":filter_{$i}"));
+                        $query->setParameter("filter_{$i}", $value);
                         break;
                     case '>': // Greater than; usage: [<]search_term
                         $andX->add($query->expr()->gt($column[$this->columnField], ":filter_{$i}"));
+                        $query->setParameter("filter_{$i}", $value);
+                        break;
+                    case 'IN': // Greater than; usage: [<]search_term
+                        $value = explode(',', $value);
+                        $params = array();
+                        for ($j = 0; $j < count($value); $j++) {
+                            $params[] = ":filter_{$i}_{$j}";
+                        }
+                        $andX->add($query->expr()->in($column[$this->columnField], implode(',', $params)));
+                        for ($j = 0; $j < count($value); $j++) {
+                            $query->setParameter("filter_{$i}_{$j}", $value[$j]);
+                        }
+                        break;
+                    case '><': // Greater than; usage: [<]search_term
+                        $value = explode(',', $value);
+                        $params = array();
+                        for ($j = 0; $j < count($value); $j++) {
+                            $params[] = ":filter_{$i}_{$j}";
+                        }
+                        $andX->add($query->expr()->between($column[$this->columnField], $params[0], $params[1]));
+                        for ($j = 0; $j < count($value); $j++) {
+                            $query->setParameter("filter_{$i}_{$j}", $value[$j]);
+                        }
                         break;
                     case '=': // Equals (default); usage: [=]search_term
-                    default:
                         $andX->add($query->expr()->eq($column[$this->columnField], ":filter_{$i}"));
+                        $query->setParameter("filter_{$i}", $value);
+                        break;
+                    case '%•': // Like; usage: [%]search_term
+                    default:
+                        $andX->add($query->expr()->like($column[$this->columnField], ":filter_{$i}"));
+                        $value = "{$value}%";
+                        $query->setParameter("filter_{$i}", $value);
                         break;
                 }
-                $query->setParameter("filter_{$i}", $value);
             }
             if ($andX->count() >= 1) {
                 $query->andWhere($andX);
@@ -186,10 +217,10 @@ class Builder
     /**
      * @return array
      */
-    public function getResponse()
+    public function getResponse($hydrator = null)
     {
         return array(
-            'data' => $this->getData(),
+            'data' => $this->getData($hydrator),
             'draw' => $this->requestParams['draw'],
             'recordsFiltered' => $this->getRecordsFiltered(),
             'recordsTotal' => $this->getRecordsTotal(),

@@ -15,3 +15,13 @@ Usage with [doctrine/orm](https://github.com/doctrine/doctrine2):
 This is a clone from https://github.com/vaibhavpandeyvpz/doctrine-datatables with some intenal modifications. So please refer to the original tool for usage.
 
 See [LICENSE.md](https://github.com/omanshardt/doctrine-datatables/blob/master/LICENSE.md) file.
+
+## This version supports the following sql operations:
+- !=
+- LIKE (with wildcards on both sides)
+- LIKE (with wildcard on end, this is default behavior)
+- &lt;
+- &gt;
+- IN
+- BETWEEN
+- =
