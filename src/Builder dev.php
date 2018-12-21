@@ -58,10 +58,23 @@ class Builder
             $order = &$this->requestParams['order'];
             foreach ($order as $sort) {
                 $column = &$columns[intval($sort['column'])];
-                if (array_key_exists($column[$this->columnField], $this->columnAliases)) {
-                    $column[$this->columnField] = $this->columnAliases[$column[$this->columnField]];
+
+                if (is_array($column[$this->columnField])) {
+                    error_log('IISSAARRAAYY 1111');
+                    error_log(print_r($column[$this->columnField], true));
+                    $query->addOrderBy($column[$this->columnField][0], $sort['dir']);
                 }
-                $query->addOrderBy($column[$this->columnField], $sort['dir']);
+                else {
+                    if (array_key_exists($column[$this->columnField], $this->columnAliases)) {
+                        if (is_array($this->columnAliases[$column[$this->columnField]])) {
+                            $column[$this->columnField] = $this->columnAliases[$column[$this->columnField]][0];
+                        }
+                        else {
+                            $column[$this->columnField] = $this->columnAliases[$column[$this->columnField]];
+                        }
+                    }
+                    $query->addOrderBy($column[$this->columnField], $sort['dir']);
+                }
             }
         }
         // Offset
@@ -122,30 +135,32 @@ class Builder
             $column = &$columns[$i];
             $andX = $query->expr()->andX();
             if (($column['searchable'] == 'true') && ($value = trim($column['search']['value']))) {
-                if (array_key_exists($column[$this->columnField], $this->columnAliases)) {
-                    $column[$this->columnField] = $this->columnAliases[$column[$this->columnField]];
+                if (!is_array($column[$this->columnField])) {
+                    if (array_key_exists($column[$this->columnField], $this->columnAliases)) {
+                        $column[$this->columnField] = $this->columnAliases[$column[$this->columnField]];
+                    }
                 }
-                $operator = preg_match('~^\[(?<operator>[INOR=!%<>•]+)\].*$~i', $value, $matches) ? strtoupper($matches['operator']) : '%•';
-                $value    = preg_match('~^\[(?<operator>[INOR=!%<>•]+)\](?<term>.*)$~i', $value, $matches) ? $matches['term'] : $value;
+                $operator = preg_match('~^\[(?<operator>[IN=!%<>•]+)\].*$~', $value, $matches) ? $matches['operator'] : '%•';
+                $value    = preg_match('~^\[(?<operator>[IN=!%<>•]+)\](?<term>.*)$~', $value, $matches) ? $matches['term'] : $value;
                 switch ($operator) {
                     case '!=': // Not equals; usage: [!=]search_term
                         $andX->add($query->expr()->neq($column[$this->columnField], ":filter_{$i}"));
                         $query->setParameter("filter_{$i}", $value);
                         break;
-                    case '%%': // Like; usage: [%%]search_term
+                    case '%%': // Like; usage: [%]search_term
                         $andX->add($query->expr()->like($column[$this->columnField], ":filter_{$i}"));
                         $value = "%{$value}%";
                         $query->setParameter("filter_{$i}", $value);
                         break;
-                    case '<': // Less than; usage: [<]search_term
+                    case '<': // Less than; usage: [>]search_term
                         $andX->add($query->expr()->lt($column[$this->columnField], ":filter_{$i}"));
                         $query->setParameter("filter_{$i}", $value);
                         break;
-                    case '>': // Greater than; usage: [>]search_term
+                    case '>': // Greater than; usage: [<]search_term
                         $andX->add($query->expr()->gt($column[$this->columnField], ":filter_{$i}"));
                         $query->setParameter("filter_{$i}", $value);
                         break;
-                    case 'IN': // IN; usage: [IN]search_term,search_term  -> This equals OR with complete terms
+                    case 'IN': // Greater than; usage: [<]search_term
                         $value = explode(',', $value);
                         $params = array();
                         for ($j = 0; $j < count($value); $j++) {
@@ -153,41 +168,43 @@ class Builder
                         }
                         $andX->add($query->expr()->in($column[$this->columnField], implode(',', $params)));
                         for ($j = 0; $j < count($value); $j++) {
-                            $query->setParameter("filter_{$i}_{$j}", trim($value[$j]));
+                            $query->setParameter("filter_{$i}_{$j}", $value[$j]);
                         }
                         break;
-                    case 'OR': // OR; usage: [IN]search_term,search_term  -> This equals OR with complete terms
-                        $value = explode(',', $value);
-                        $params = array();
-                        $orX = $query->expr()->orX();
-                        for ($j = 0; $j < count($value); $j++) {
-                            $orX->add($query->expr()->like($column[$this->columnField], ":filter_{$i}_{$j}"));
-                        }
-                        $andX->add($orX);
-                        for ($j = 0; $j < count($value); $j++) {
-                            $query->setParameter("filter_{$i}_{$j}", "%".trim($value[$j])."%");
-                        }
-                        break;
-                    case '><': // Between than; usage: [><]search_term,search_term
+                    case '><': // Greater than; usage: [<]search_term
                         $value = explode(',', $value);
                         $params = array();
                         for ($j = 0; $j < count($value); $j++) {
                             $params[] = ":filter_{$i}_{$j}";
                         }
-                        $andX->add($query->expr()->between($column[$this->columnField], trim($params[0]), trim($params[1])));
+                        $andX->add($query->expr()->between($column[$this->columnField], $params[0], $params[1]));
                         for ($j = 0; $j < count($value); $j++) {
                             $query->setParameter("filter_{$i}_{$j}", $value[$j]);
                         }
                         break;
-                    case '=': // Equals; usage: [=]search_term
+                    case '=': // Equals (default); usage: [=]search_term
                         $andX->add($query->expr()->eq($column[$this->columnField], ":filter_{$i}"));
                         $query->setParameter("filter_{$i}", $value);
                         break;
-                    case '%•': // Like(default); usage: [%]search_term
+                    case '%•': // Like; usage: [%]search_term
                     default:
-                        $andX->add($query->expr()->like($column[$this->columnField], ":filter_{$i}"));
-                        $value = "{$value}%";
-                        $query->setParameter("filter_{$i}", $value);
+                        if (is_array($column[$this->columnField])) {
+                            $orX = $query->expr()->orX();
+
+                            foreach($column[$this->columnField] as $arr) {
+                                error_log('if '.$arr);
+                                $orX->add($query->expr()->like($arr, ":filter_{$i}"));
+                            }
+
+                            $value = "{$value}%";
+                            $andX->add($orX);
+                            $query->setParameter("filter_{$i}", $value);
+                        }
+                        else {
+                            $andX->add($query->expr()->like($column[$this->columnField], ":filter_{$i}"));
+                            $value = "{$value}%";
+                            $query->setParameter("filter_{$i}", $value);
+                        }
                         break;
                 }
             }
