@@ -20,7 +20,8 @@ This one supports
 ```bash
 Doctrine\ORM\Tools\Pagination\Paginator
 ```
-To search from datatables there are eight different search modes
+To search from datatables there are nine different search modes
+
 <dl>
 	<dt>*% (LIKE '…%') -> default</dt>
 	<dd>This performs a <strong>LIKE '…%'</strong> search where the start of the search term must match  a value in the given column. This can be archived with only providing the search term (because it's default) or by prefixing the search term with "[*%]" <strong>([*%]searchTerm)</strong>.</dd>
